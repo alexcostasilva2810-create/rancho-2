@@ -1,0 +1,8 @@
+streamlit
+streamlit-drawable-canvas
+fpdf
+Pillow
+pandas
+xlsxwriter
+openpyxl
+pytz
