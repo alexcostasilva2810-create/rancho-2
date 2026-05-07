@@ -125,7 +125,7 @@ elif st.session_state.pagina == "menu":
         st.session_state.pagina = "home"; st.rerun()
 
 # =================================================================
-# BLOCO 4: TABELA DE CONFERÊNCIA (LAYOUT ORIGINAL RESTAURADO)
+# BLOCO 4: TABELA DE CONFERÊNCIA
 # =================================================================
 elif st.session_state.pagina == "lista":
     st.title("Conferência de Estoque")
@@ -140,7 +140,6 @@ elif st.session_state.pagina == "lista":
         use_container_width=True
     )
 
-    # BARRA DE BOTÕES INFERIOR
     st.markdown("---")
     col_pdf, col_excel, col_btn_menu = st.columns([1,1,1])
 
@@ -149,7 +148,6 @@ elif st.session_state.pagina == "lista":
             st.session_state.pagina = "menu"
             st.rerun()
 
-    # GERAÇÃO DE EXCEL
     with col_excel:
         output_excel = io.BytesIO()
         with pd.ExcelWriter(output_excel, engine='xlsxwriter') as writer:
@@ -162,14 +160,13 @@ elif st.session_state.pagina == "lista":
             use_container_width=True
         )
 
-    # GERAÇÃO DE PDF (COM AS MELHORIAS DE CABEÇALHO E QUADRADO)
     with col_pdf:
         try:
             def preparar(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
             
             class PDF_Checklist(FPDF):
                 def header(self):
-                    self.set_text_color(0, 0, 128) # Azul Marinho
+                    self.set_text_color(0, 0, 128)
                     self.set_font("Arial", "B", 18)
                     self.cell(0, 10, "ZION TECNOLOGIA", ln=True, align="C")
                     self.set_text_color(0, 0, 0)
@@ -180,13 +177,15 @@ elif st.session_state.pagina == "lista":
                     self.ln(5)
                     self.set_fill_color(230, 230, 230)
                     self.set_font("Arial", "B", 8)
+                    
+                    # AJUSTE DE LARGURAS PARA CABER O TIPO (Total 190mm)
                     self.cell(10, 7, "COD", 1, 0, "C", True)
-                    self.cell(90, 7, "DESCRICAO", 1, 0, "C", True)
-                    self.cell(20, 7, "TIPO", 1, 0, "C", True)
+                    self.cell(75, 7, "DESCRICAO", 1, 0, "C", True)
+                    self.cell(35, 7, "TIPO", 1, 0, "C", True) # Aumentado de 20 para 35
                     self.cell(15, 7, "UNID", 1, 0, "C", True)
                     self.cell(15, 7, "PRED.", 1, 0, "C", True)
                     self.cell(15, 7, "SOLIC.", 1, 0, "C", True)
-                    self.cell(15, 7, "CHECK", 1, 1, "C", True)
+                    self.cell(25, 7, "CHECK", 1, 1, "C", True) # Ajustado para fechar a conta
 
             pdf = PDF_Checklist()
             pdf.add_page()
@@ -194,14 +193,15 @@ elif st.session_state.pagina == "lista":
             
             for _, r in df_editado.iterrows():
                 pdf.cell(10, 6, str(int(r["ITEM"])), 1, 0, "C")
-                pdf.cell(90, 6, preparar(r["DESCRIÇÃO"]), 1, 0, "L")
-                pdf.cell(20, 6, preparar(r["TIPO"]), 1, 0, "C")
+                pdf.cell(75, 6, preparar(r["DESCRIÇÃO"]), 1, 0, "L")
+                pdf.cell(35, 6, preparar(r["TIPO"]), 1, 0, "C") # Aumentado aqui também
                 pdf.cell(15, 6, preparar(r["UNID MED"]), 1, 0, "C")
                 pdf.cell(15, 6, str(r["PREDEFINIDO"]), 1, 0, "C")
                 pdf.cell(15, 6, str(r["CONFIRMA"]), 1, 0, "C")
+                
                 x_pos, y_pos = pdf.get_x(), pdf.get_y()
-                pdf.cell(15, 6, "", 1, 1, "C") 
-                pdf.rect(x_pos + 5.5, y_pos + 1, 4, 4) 
+                pdf.cell(25, 6, "", 1, 1, "C") 
+                pdf.rect(x_pos + 10.5, y_pos + 1, 4, 4) # Centralizado o quadrado na nova largura
 
             pdf_bytes = pdf.output(dest='S').encode('latin-1')
             st.download_button("📄 PDF", data=pdf_bytes, file_name=f"Rancho_{st.session_state.navio}.pdf", use_container_width=True)
