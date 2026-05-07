@@ -1,35 +1,30 @@
 import streamlit as st
 import pandas as pd
 from streamlit_drawable_canvas import st_canvas
-from datetime import datetime, timedelta
+from datetime import datetime
 import unicodedata
 from fpdf import FPDF
-from PIL import Image
 import os
 import requests
-import io
 import base64
-import pytz
+import io
 
-# --- CONFIGURAÇÃO PARA ÍCONE E APP INSTALÁVEL (PWA) ---
+# --- CONFIGURAÇÃO PWA ---
 st.markdown("""
     <head>
         <link rel="manifest" href="https://raw.githubusercontent.com/alexcostasilva2810-create/Rancho-Zion/main/manifest.json?v=100">
         <meta name="mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     </head>
     """, unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 1: CONFIGURAÇÕES, CONSTANTES E ESTADOS
+# BLOCO 1: CONFIGURAÇÕES E ESTADOS
 # =================================================================
 st.set_page_config(page_title="Zion Rancho App", layout="wide")
 
 COLUNAS_PADRAO = ["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"]
 NOTION_TOKEN = "ntn_jZ6353375938j9kJFqKWjD0N4ONt1rwP515tsIMwxtucHa"
-DATABASE_ID = "2e3025de7b79803abe0efde74f87a2e1" 
-ID_HISTORICO_NOTION = "2e5025de7b79803187a4d8b865179440"
+DATABASE_ID = "2e3025de7b79803abe0efde74f87a2e1"
 
 if 'pagina' not in st.session_state: st.session_state.pagina = "home"
 if 'cozinheiro' not in st.session_state: st.session_state.cozinheiro = ""
@@ -88,37 +83,19 @@ def carregar_dados_do_notion():
 def aplicar_estilo_azul():
     st.markdown("<style>.stApp { background-color: #4169E1 !important; } h1,h2,h3,p,label { color: white !important; } div.stButton > button { background-color: #FF8C00 !important; color: black !important; font-weight: 900; border-radius: 10px; }</style>", unsafe_allow_html=True)
 
-def get_base64_of_bin_file(bin_file):
-    try:
-        with open(bin_file, 'rb') as f:
-            data = f.read()
-        return base64.b64encode(data).decode()
-    except: return ""
-
 # =================================================================
-# BLOCO 3: TELAS (HOME, LOGIN, MENU)
+# BLOCO 3: TELAS INICIAIS
 # =================================================================
 if st.session_state.pagina == "home":
-    img_base64 = get_base64_of_bin_file('zion_final.jpg')
-    st.markdown(f"""
-        <style>
-        .stApp {{ background-color: #0e1117; background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url("data:image/jpg;base64,{img_base64}"); background-size: contain; background-repeat: no-repeat; background-position: center top; background-attachment: fixed; }}
-        .main-container {{ display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 85vh; padding-bottom: 50px; }}
-        div.stButton > button {{ width: 280px !important; height: 60px !important; background-color: #FF8C00 !important; color: white !important; border-radius: 12px !important; font-weight: bold !important; font-size: 22px !important; box-shadow: 0px 10px 20px rgba(0,0,0,0.6); transition: 0.3s; }}
-        </style>
-        """, unsafe_allow_html=True)
-    st.markdown("<div class='main-container'><div style='margin-top: 400px;'></div>", unsafe_allow_html=True)
+    st.title("Zion Rancho App")
     if st.button("ACESSAR SISTEMA"):
         st.session_state.pagina = "login"
         st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
 
 elif st.session_state.pagina == "login":
-    st.markdown("<style>.stApp { background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('https://images.unsplash.com/photo-1574689049868-e94ed5301745?q=80&w=1920'); background-size: cover; } .login-box { background-color: rgba(255, 255, 255, 0.1); padding: 30px; border-radius: 15px; border: 1px solid rgba(255, 255, 255, 0.2); }</style>", unsafe_allow_html=True)
-    st.markdown("<h1 style='text-align: center;'> Acesso Restrito</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>Acesso Restrito</h1>", unsafe_allow_html=True)
     col_l1, col_l2, col_l3 = st.columns([1, 1.5, 1])
     with col_l2:
-        st.markdown("<div class='login-box'>", unsafe_allow_html=True)
         navio_sel = st.selectbox("Selecione sua Embarcação", list(USUARIOS.keys()))
         senha_dig = st.text_input("Senha de Acesso", type="password")
         if st.button("ENTRAR"):
@@ -129,37 +106,29 @@ elif st.session_state.pagina == "login":
                 st.session_state.pagina = "menu"
                 st.rerun()
             else: st.error("❌ Senha incorreta!")
-        if st.button("⬅️ VOLTAR AO INÍCIO"):
-            st.session_state.pagina = "home"
-            st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
 
 elif st.session_state.pagina == "menu":
     aplicar_estilo_azul()
     st.title(f"Painel - {st.session_state.navio}")
-    st.markdown("---")
     col1, col2 = st.columns(2)
     with col1:
         if st.button("📋 TABELA DE RANCHO", use_container_width=True): 
             st.session_state.pagina = "lista"; st.rerun()
-        if st.button("🗄️ VER HISTÓRICO", use_container_width=True): 
-            st.session_state.pagina = "historico"; st.rerun()
-    with col2:
         if st.button("📜 DECLARAÇÃO", use_container_width=True): 
             st.session_state.pagina = "tripulacao"; st.rerun()
+    with col2:
         if st.button("📦 RANCHO RECEBIDO", use_container_width=True): 
             st.session_state.pagina = "rancho_recebido"; st.rerun()
-            
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("⬅️ LOGOUT (SAIR)"): 
+        if st.button("🗄️ VER HISTÓRICO", use_container_width=True): 
+            st.session_state.pagina = "historico"; st.rerun()
+    if st.button("⬅️ LOGOUT"): 
         st.session_state.pagina = "home"; st.rerun()
 
 # =================================================================
-# BLOCO 4: TABELA DE RANCHO (LAYOUT ORIGINAL + CABEÇALHO PDF NOVO)
+# BLOCO 4: TABELA DE CONFERÊNCIA (LAYOUT ORIGINAL RESTAURADO)
 # =================================================================
 elif st.session_state.pagina == "lista":
-    st.markdown("<style>.stApp { background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=1920'); background-size: cover; }</style>", unsafe_allow_html=True)
-    st.title(" Conferência de Estoque")
+    st.title("Conferência de Estoque")
     
     if st.button("🔄 CARREGAR ITENS DO NOTION"):
         st.session_state.df_lista = carregar_dados_do_notion()
@@ -171,61 +140,73 @@ elif st.session_state.pagina == "lista":
         use_container_width=True
     )
 
-    if st.button("⬅️ MENU"): st.session_state.pagina = "menu"; st.rerun()
+    # BARRA DE BOTÕES INFERIOR
+    st.markdown("---")
+    col_pdf, col_excel, col_btn_menu = st.columns([1,1,1])
 
-    try:
-        def preparar(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
-        
-        class PDF_Checklist(FPDF):
-            def header(self):
-                # Título 1: ZION TECNOLOGIA em Azul Marinho
-                self.set_text_color(0, 0, 128)
-                self.set_font("Arial", "B", 18)
-                self.cell(0, 10, "ZION TECNOLOGIA", ln=True, align="C")
-                
-                # Título 2: Lista de Rancho
-                self.set_text_color(0, 0, 0)
-                self.set_font("Arial", "B", 12)
-                self.cell(0, 8, preparar(f"Lista de Rancho do Empurrador: {st.session_state.navio}"), ln=True, align="C")
-                
-                # Título 3: Solicitante
-                self.set_font("Arial", "", 11)
-                self.cell(0, 8, preparar(f"Solicitante: {st.session_state.cozinheiro}"), ln=True, align="C")
-                
-                self.ln(5)
-                # Cabeçalho da Tabela
-                self.set_fill_color(230, 230, 230)
-                self.set_font("Arial", "B", 8)
-                self.cell(10, 7, "COD", 1, 0, "C", True)
-                self.cell(90, 7, "DESCRICAO", 1, 0, "C", True)
-                self.cell(20, 7, "TIPO", 1, 0, "C", True)
-                self.cell(15, 7, "UNID", 1, 0, "C", True)
-                self.cell(15, 7, "PRED.", 1, 0, "C", True)
-                self.cell(15, 7, "SOLIC.", 1, 0, "C", True)
-                self.cell(15, 7, "CHECK", 1, 1, "C", True)
+    with col_btn_menu:
+        if st.button("⬅️ MENU", use_container_width=True):
+            st.session_state.pagina = "menu"
+            st.rerun()
 
-        pdf = PDF_Checklist()
-        pdf.add_page()
-        pdf.set_font("Arial", "", 8)
-        
-        for _, r in df_editado.iterrows():
-            codigo_limpo = str(int(r["ITEM"]))
-            pdf.cell(10, 6, codigo_limpo, 1, 0, "C")
-            pdf.cell(90, 6, preparar(r["DESCRIÇÃO"]), 1, 0, "L")
-            pdf.cell(20, 6, preparar(r["TIPO"]), 1, 0, "C")
-            pdf.cell(15, 6, preparar(r["UNID MED"]), 1, 0, "C")
-            pdf.cell(15, 6, str(r["PREDEFINIDO"]), 1, 0, "C")
-            pdf.cell(15, 6, str(r["CONFIRMA"]), 1, 0, "C")
+    # GERAÇÃO DE EXCEL
+    with col_excel:
+        output_excel = io.BytesIO()
+        with pd.ExcelWriter(output_excel, engine='xlsxwriter') as writer:
+            df_editado.to_excel(writer, index=False, sheet_name='Rancho')
+        st.download_button(
+            label="excel EXCEL",
+            data=output_excel.getvalue(),
+            file_name=f"Rancho_{st.session_state.navio}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
+
+    # GERAÇÃO DE PDF (COM AS MELHORIAS DE CABEÇALHO E QUADRADO)
+    with col_pdf:
+        try:
+            def preparar(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
             
-            x_pos, y_pos = pdf.get_x(), pdf.get_y()
-            pdf.cell(15, 6, "", 1, 1, "C") 
-            pdf.rect(x_pos + 5.5, y_pos + 1, 4, 4) 
+            class PDF_Checklist(FPDF):
+                def header(self):
+                    self.set_text_color(0, 0, 128) # Azul Marinho
+                    self.set_font("Arial", "B", 18)
+                    self.cell(0, 10, "ZION TECNOLOGIA", ln=True, align="C")
+                    self.set_text_color(0, 0, 0)
+                    self.set_font("Arial", "B", 12)
+                    self.cell(0, 8, preparar(f"Lista de Rancho do Empurrador: {st.session_state.navio}"), ln=True, align="C")
+                    self.set_font("Arial", "", 11)
+                    self.cell(0, 8, preparar(f"Solicitante: {st.session_state.cozinheiro}"), ln=True, align="C")
+                    self.ln(5)
+                    self.set_fill_color(230, 230, 230)
+                    self.set_font("Arial", "B", 8)
+                    self.cell(10, 7, "COD", 1, 0, "C", True)
+                    self.cell(90, 7, "DESCRICAO", 1, 0, "C", True)
+                    self.cell(20, 7, "TIPO", 1, 0, "C", True)
+                    self.cell(15, 7, "UNID", 1, 0, "C", True)
+                    self.cell(15, 7, "PRED.", 1, 0, "C", True)
+                    self.cell(15, 7, "SOLIC.", 1, 0, "C", True)
+                    self.cell(15, 7, "CHECK", 1, 1, "C", True)
 
-        pdf_output = pdf.output(dest='S').encode('latin-1')
-        st.download_button("📄 GERAR E BAIXAR PDF", data=pdf_output, file_name=f"Rancho_{st.session_state.navio}.pdf", use_container_width=True)
-        st.session_state.ultimo_pdf_dados = pdf_output
+            pdf = PDF_Checklist()
+            pdf.add_page()
+            pdf.set_font("Arial", "", 8)
+            
+            for _, r in df_editado.iterrows():
+                pdf.cell(10, 6, str(int(r["ITEM"])), 1, 0, "C")
+                pdf.cell(90, 6, preparar(r["DESCRIÇÃO"]), 1, 0, "L")
+                pdf.cell(20, 6, preparar(r["TIPO"]), 1, 0, "C")
+                pdf.cell(15, 6, preparar(r["UNID MED"]), 1, 0, "C")
+                pdf.cell(15, 6, str(r["PREDEFINIDO"]), 1, 0, "C")
+                pdf.cell(15, 6, str(r["CONFIRMA"]), 1, 0, "C")
+                x_pos, y_pos = pdf.get_x(), pdf.get_y()
+                pdf.cell(15, 6, "", 1, 1, "C") 
+                pdf.rect(x_pos + 5.5, y_pos + 1, 4, 4) 
 
-    except Exception as e: st.error(f"Erro ao gerar PDF: {e}")
+            pdf_bytes = pdf.output(dest='S').encode('latin-1')
+            st.download_button("📄 PDF", data=pdf_bytes, file_name=f"Rancho_{st.session_state.navio}.pdf", use_container_width=True)
+            st.session_state.ultimo_pdf_dados = pdf_bytes
+        except Exception as e: st.error(f"Erro PDF: {e}")
 
 # =================================================================
 # BLOCO 5: TRIPULAÇÃO / DECLARAÇÃO
@@ -234,13 +215,13 @@ elif st.session_state.pagina == "tripulacao":
     st.markdown("<h1 style='text-align: center;'>⚓ Declaração de Reabastecimento</h1>", unsafe_allow_html=True)
     if st.button("⬅️ MENU"): st.session_state.pagina = "menu"; st.rerun()
     with st.form("form_dec"):
-        resp_nome = st.text_input("Responsável", value=st.session_state.get('cozinheiro', ''), disabled=True)
-        navio_nome = st.text_input("Navio", value=st.session_state.get('navio', ''), disabled=True)
-        data_ultimo = st.date_input("Data do último rancho:", format="DD/MM/YYYY")
-        qtde_trip = st.number_input("Qtde Tripulante:", min_value=1, value=16)
-        canvas_result = st_canvas(stroke_width=3, stroke_color="#000000", background_color="#FFFFFF", height=120, key="sign")
+        st.text_input("Responsável", value=st.session_state.cozinheiro, disabled=True)
+        st.text_input("Navio", value=st.session_state.navio, disabled=True)
+        st.date_input("Data do último rancho:", format="DD/MM/YYYY")
+        st.number_input("Qtde Tripulante:", min_value=1, value=16)
+        st_canvas(stroke_width=3, stroke_color="#000000", background_color="#FFFFFF", height=120, key="sign")
         if st.form_submit_button("💾 SALVAR"):
-            st.success("Dados salvos com sucesso.")
+            st.success("Dados salvos.")
 
 # =================================================================
 # BLOCO 6: HISTÓRICO
@@ -249,42 +230,22 @@ elif st.session_state.pagina == "historico":
     aplicar_estilo_azul()
     st.title("🗄️ Histórico de Documentos")
     if st.button("⬅️ MENU"): st.session_state.pagina = "menu"; st.rerun()
-    st.info("Consulte os documentos gerados no sistema.")
+    st.info("Consulte os documentos gerados.")
 
 # =================================================================
-# BLOCO 7: RANCHO RECEBIDO (TELA)
+# BLOCO 7: RANCHO RECEBIDO
 # =================================================================
 elif st.session_state.pagina == "rancho_recebido":
     aplicar_estilo_azul()
-    st.markdown("<h1 style='text-align: center;'>📦 Confirmação de Recebimento</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>📦 Recebimento</h1>", unsafe_allow_html=True)
     if st.button("⬅️ VOLTAR AO MENU"): st.session_state.pagina = "menu"; st.rerun()
-    
-    col_rec1, col_rec2 = st.columns([1, 1])
-    with col_rec1:
-        st.subheader("📄 Último PDF Gerado")
-        if st.session_state.ultimo_pdf_dados:
-            st.download_button("📥 BAIXAR PDF PARA CONFERÊNCIA", data=st.session_state.ultimo_pdf_dados, file_name=f"Conferencia_{st.session_state.navio}.pdf", use_container_width=True)
-        else:
-            st.warning("Nenhum PDF gerado nesta sessão.")
-    with col_rec2:
-        st.subheader("✅ Confirmar Entrega")
-        if st.checkbox("CONCORDO QUE O RANCHO FOI RECEBIDO E CONFERIDO."):
-            if st.button("💾 REGISTRAR RECEBIMENTO"): 
-                st.balloons()
-                st.success("Recebimento registrado com sucesso!")
+    if st.session_state.ultimo_pdf_dados:
+        st.download_button("📥 BAIXAR ÚLTIMO PDF", data=st.session_state.ultimo_pdf_dados, file_name="Conferencia.pdf")
 
 # =================================================================
-# BLOCO 8: CONFIGURAÇÕES ADICIONAIS (ESTILO)
+# BLOCO 8 E 9: ESTILOS E RODAPÉ
 # =================================================================
-st.markdown("""
-    <style>
-    .stDataFrame { background-color: white; border-radius: 10px; }
-    </style>
-""", unsafe_allow_html=True)
-
-# =================================================================
-# BLOCO 9: FOOTER / CRÉDITOS
-# =================================================================
+st.markdown("<style>.stDataFrame { background-color: white; border-radius: 10px; }</style>", unsafe_allow_html=True)
 if st.session_state.pagina != "home":
     st.markdown("---")
-    st.caption(f"Logado como: {st.session_state.cozinheiro} | {st.session_state.navio} | © Zion Tecnologia 2026")
+    st.caption(f"Logado: {st.session_state.cozinheiro} | {st.session_state.navio} | © Zion Tecnologia 2026")
