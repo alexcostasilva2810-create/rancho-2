@@ -9,107 +9,126 @@ import os
 from datetime import datetime
 import pytz
 
-# BLOCO 1: CONFIGS E ESTADOS
+# --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Zion Rancho App", layout="wide")
-COLUNAS = ["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"]
+
+# =================================================================
+# BLOCO 1: ESTADOS E VARIÁVEIS
+# =================================================================
+COLUNAS_PADRAO = ["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"]
 
 if 'pagina' not in st.session_state: st.session_state.pagina = "home"
-if 'df_lista' not in st.session_state: st.session_state.df_lista = pd.DataFrame(columns=COLUNAS)
-if 'ultimo_pdf' not in st.session_state: st.session_state.ultimo_pdf = None
+if 'df_lista' not in st.session_state: 
+    st.session_state.df_lista = pd.DataFrame(columns=COLUNAS_PADRAO)
 
-# BLOCO 2: USUÁRIOS
-USUARIOS = {"ADMINISTRADOR": {"nome": "ALEX", "senha": "2463"}, "JATOBA": {"nome": "STEFANI", "senha": "2558"}, "JACARANDA": {"nome": "GABRIEL", "senha": "6352"}}
+USUARIOS = {
+    "ADMINISTRADOR": {"nome": "ALEX", "senha": "2463"},
+    "JATOBA": {"nome": "STEFANI", "senha": "2558"},
+    "JACARANDA": {"nome": "GABRIEL", "senha": "6352"}
+}
 
-# BLOCO 3: HOME
+# =================================================================
+# BLOCO 2: TELA INICIAL (COM LOGO ZION)
+# =================================================================
 if st.session_state.pagina == "home":
-    st.title("Zion Rancho App") #
-    if os.path.exists("zion_final.jpg"): st.image("zion_final.jpg") #
-    if st.button("ACESSAR SISTEMA"): st.session_state.pagina = "login"; st.rerun()
+    st.markdown("<h1 style='text-align: center;'>Zion Rancho App</h1>", unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        # Verifica se a imagem existe para evitar erro de execução
+        if os.path.exists("image_729ad1.jpg"):
+            st.image("image_729ad1.jpg", use_container_width=True)
+        else:
+            st.warning("Logotipo não encontrado. Continuando sem imagem...")
+            
+        if st.button("🚀 ACESSAR SISTEMA", use_container_width=True):
+            st.session_state.pagina = "login"
+            st.rerun()
 
-# BLOCO 4: LOGIN
+# =================================================================
+# BLOCO 3: LOGIN
+# =================================================================
 elif st.session_state.pagina == "login":
-    st.markdown("<h1 style='text-align: center;'>Acesso Restrito</h1>", unsafe_allow_html=True)
-    navio = st.selectbox("Embarcação", list(USUARIOS.keys()))
-    senha = st.text_input("Senha", type="password")
-    if st.button("ENTRAR"):
-        if USUARIOS[navio]["senha"] == senha:
-            st.session_state.cozinheiro, st.session_state.navio = USUARIOS[navio]["nome"], navio
-            st.session_state.pagina = "menu"; st.rerun()
-
-# BLOCO 5: MENU
-elif st.session_state.pagina == "menu":
-    st.title(f"Painel - {st.session_state.navio}")
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("📋 TABELA DE RANCHO", use_container_width=True): st.session_state.pagina = "lista"; st.rerun()
-        if st.button("📦 RANCHO RECEBIDO", use_container_width=True): st.session_state.pagina = "recebido"; st.rerun()
-    with c2:
-        if st.button("📜 DECLARAÇÃO", use_container_width=True): st.session_state.pagina = "tripulacao"; st.rerun()
-        if st.button("🗄️ HISTÓRICO", use_container_width=True): st.session_state.pagina = "historico"; st.rerun()
-    if st.button("⬅️ LOGOUT"): st.session_state.pagina = "home"; st.rerun()
-
-# BLOCO 6: LISTA + NOTION (CONECTADO)
-elif st.session_state.pagina == "lista":
-    st.markdown("<style>.stApp { background-color: #D3D3D3 !important; }</style>", unsafe_allow_html=True) #
-    st.title("Conferência de Estoque")
-    
-    # O BOTÃO QUE PUXA A LISTA DO NOTION
-    if st.button("🔄 CARREGAR ITENS DO NOTION"):
-        try:
-            # Coloque sua URL de integração aqui
-            url = "https://raw.githubusercontent.com/alexcostasilva2810-create/Rancho-Zion/main/estoque.csv"
-            response = requests.get(url)
-            if response.status_code == 200:
-                st.session_state.df_lista = pd.read_csv(io.StringIO(response.text))
-                st.success("Lista sincronizada!") #
+    st.markdown("<h2 style='text-align: center;'>Acesso ao Sistema</h2>", unsafe_allow_html=True)
+    col_l1, col_l2, col_l3 = st.columns([1, 1.5, 1])
+    with col_l2:
+        navio_sel = st.selectbox("Selecione sua Embarcação", list(USUARIOS.keys()))
+        senha_dig = st.text_input("Senha de Acesso", type="password")
+        if st.button("ENTRAR"):
+            dados = USUARIOS.get(navio_sel)
+            if dados and senha_dig == dados["senha"]:
+                st.session_state.cozinheiro = dados["nome"]
+                st.session_state.navio = navio_sel
+                st.session_state.pagina = "lista" # Vai direto para a lista
                 st.rerun()
-        except: st.error("Erro ao conectar com Notion")
+            else:
+                st.error("❌ Senha incorreta!")
 
-    st.session_state.df_lista = st.data_editor(st.session_state.df_lista, hide_index=True, use_container_width=True)
+# =================================================================
+# BLOCO 4: TABELA (FUNDO CINZA + BLOQUEIO + DATA/HORA BRASIL)
+# =================================================================
+elif st.session_state.pagina == "lista":
+    # Fundo cinza para conferência
+    st.markdown("<style>.stApp { background-color: #D3D3D3 !important; }</style>", unsafe_allow_html=True)
+    st.title(f"Conferência: {st.session_state.navio}")
+
+    # Carregar dados iniciais se estiver vazio
+    if st.session_state.df_lista.empty:
+        # Aqui você pode manter sua função de carregar do Notion
+        st.session_state.df_lista = pd.DataFrame([
+            {"ITEM": 1, "DESCRIÇÃO": "Carne Moída", "TIPO": "PROTEÍNAS", "UNID MED": "kg", "PREDEFINIDO": 12, "CONFIRMA": 0},
+            {"ITEM": 2, "DESCRIÇÃO": "Alcatra", "TIPO": "PROTEÍNAS", "UNID MED": "kg", "PREDEFINIDO": 10, "CONFIRMA": 0}
+        ])
+
+    df_editado = st.data_editor(st.session_state.df_lista, hide_index=True, use_container_width=True)
+
+    # TRAVA DE SEGURANÇA
+    excedeu = (df_editado["CONFIRMA"] > df_editado["PREDEFINIDO"]).any()
+
+    if excedeu:
+        st.markdown("<p style='color: red; font-weight: bold; font-size: 22px; text-align: center;'>⚠️ O limite foi excedido você não pode continuar</p>", unsafe_allow_html=True)
     
-    excedeu = (st.session_state.df_lista["CONFIRMA"] > st.session_state.df_lista["PREDEFINIDO"]).any()
-    if excedeu: st.error("LIMITE EXCEDIDO!")
-
     st.markdown("---")
-    col1, col2, col3 = st.columns(3) #
-    
-    with col3:
-        if st.button("⬅️ MENU", use_container_width=True): st.session_state.pagina = "menu"; st.rerun()
+    col_pdf, col_btn_menu = st.columns([1,1])
 
-# BLOCO 7: PDF COM RODAPÉ DATA/HORA
+    with col_btn_menu:
+        if st.button("⬅️ VOLTAR"):
+            st.session_state.pagina = "home"
+            st.rerun()
+
+    # Só mostra o botão de PDF se o valor estiver correto
     if not excedeu:
-        with col1:
+        with col_pdf:
             try:
-                def prep(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
-                class PDF(FPDF):
+                def preparar(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
+                
+                class PDF_Zion(FPDF):
+                    def header(self):
+                        self.set_font("Arial", "B", 15)
+                        self.cell(0, 10, "ZION TECNOLOGIA", ln=True, align="C")
+                        self.set_font("Arial", "B", 11)
+                        self.cell(0, 8, preparar(f"Lista de Rancho: {st.session_state.navio}"), ln=True, align="C")
+                    
                     def footer(self):
                         self.set_y(-15)
-                        tz = pytz.timezone('America/Sao_Paulo')
-                        self.cell(0, 10, prep(f"Gerado: {datetime.now(tz).strftime('%d/%m/%Y %H:%M:%S')}"), 0, 0, 'C') #
-                pdf = PDF(); pdf.add_page(); pdf.set_font("Arial", "B", 14)
-                pdf.cell(0, 10, prep(f"RANCHO: {st.session_state.navio}"), ln=True, align='C')
-                # Loop dos itens...
-                out = pdf.output(dest='S').encode('latin-1')
-                if st.download_button("📄 PDF", data=out, file_name="lista.pdf", use_container_width=True):
-                    st.session_state.ultimo_pdf = out
-            except: st.error("Erro PDF")
+                        self.set_font("Arial", "I", 8)
+                        # Data/Hora Brasil no rodapé
+                        br_tz = pytz.timezone('America/Sao_Paulo')
+                        data_hora = datetime.now(br_tz).strftime("%d/%m/%Y %H:%M:%S")
+                        self.cell(0, 10, preparar(f"Gerado em: {data_hora} | Zion Tecnologia"), 0, 0, "C")
 
-# BLOCO 8: ASSINATURA
-elif st.session_state.pagina == "tripulacao":
-    st.title("📜 Assinatura")
-    st_canvas(stroke_width=3, background_color="#FFFFFF", height=150, key="sign")
-    if st.button("⬅️ VOLTAR"): st.session_state.pagina = "menu"; st.rerun()
+                pdf = PDF_Zion()
+                pdf.add_page()
+                # (Aqui entraria o loop para desenhar as linhas do PDF...)
+                
+                pdf_output = pdf.output(dest='S').encode('latin-1')
+                if st.download_button("📄 GERAR E BAIXAR PDF", data=pdf_output, file_name=f"Rancho_{st.session_state.navio}.pdf", use_container_width=True):
+                    st.session_state.df_lista['CONFIRMA'] = 0 # Limpa após baixar
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Erro no relatório: {e}")
 
-# BLOCO 9: HISTÓRICO / RECEBIMENTO
-elif st.session_state.pagina == "recebido" or st.session_state.pagina == "historico":
-    st.title("📦 Controle de Documentos")
-    if st.session_state.ultimo_pdf:
-        st.download_button("📥 Baixar Último PDF Gerado", data=st.session_state.ultimo_pdf, file_name="historico.pdf")
-        if st.session_state.pagina == "recebido":
-            st.checkbox("Confirmo que recebi o rancho desta lista")
-    else: st.warning("Nenhum registro encontrado.")
-    if st.button("⬅️ MENU"): st.session_state.pagina = "menu"; st.rerun()
-
-# Rodapé Operador
+# Rodapé padrão em todas as páginas
 if st.session_state.pagina != "home":
-    st.caption(f"Operador: {st.session_state.get('cozinheiro','-')} | © Zion 2026")
+    st.markdown("---")
+    st.caption(f"Operador: {st.session_state.cozinheiro if 'cozinheiro' in st.session_state else '---'} | © Zion Tecnologia 2026")
