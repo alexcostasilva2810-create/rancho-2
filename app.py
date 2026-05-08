@@ -125,9 +125,12 @@ elif st.session_state.pagina == "menu":
         st.session_state.pagina = "home"; st.rerun()
 
 # =================================================================
-# BLOCO 4: TABELA DE CONFERÊNCIA
+# BLOCO 4: TABELA DE CONFERÊNCIA (FUNDO CINZA + RESET)
 # =================================================================
 elif st.session_state.pagina == "lista":
+    # Fundo Cinza para esta tela
+    st.markdown("<style>.stApp { background-color: #D3D3D3 !important; } .stDataFrame { background-color: white !important; border-radius: 10px; }</style>", unsafe_allow_html=True)
+    
     st.title("Conferência de Estoque")
     
     if st.button("🔄 CARREGAR ITENS DO NOTION"):
@@ -152,13 +155,17 @@ elif st.session_state.pagina == "lista":
         output_excel = io.BytesIO()
         with pd.ExcelWriter(output_excel, engine='xlsxwriter') as writer:
             df_editado.to_excel(writer, index=False, sheet_name='Rancho')
-        st.download_button(
+        
+        # O Excel também reseta a coluna ao baixar
+        if st.download_button(
             label="excel EXCEL",
             data=output_excel.getvalue(),
             file_name=f"Rancho_{st.session_state.navio}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True
-        )
+        ):
+            st.session_state.df_lista['CONFIRMA'] = 0
+            st.rerun()
 
     with col_pdf:
         try:
@@ -166,7 +173,7 @@ elif st.session_state.pagina == "lista":
             
             class PDF_Checklist(FPDF):
                 def header(self):
-                    self.set_text_color(0, 0, 128)
+                    self.set_text_color(0, 0, 128) # Azul Marinho
                     self.set_font("Arial", "B", 18)
                     self.cell(0, 10, "ZION TECNOLOGIA", ln=True, align="C")
                     self.set_text_color(0, 0, 0)
@@ -177,15 +184,13 @@ elif st.session_state.pagina == "lista":
                     self.ln(5)
                     self.set_fill_color(230, 230, 230)
                     self.set_font("Arial", "B", 8)
-                    
-                    # AJUSTE DE LARGURAS PARA CABER O TIPO (Total 190mm)
                     self.cell(10, 7, "COD", 1, 0, "C", True)
                     self.cell(75, 7, "DESCRICAO", 1, 0, "C", True)
-                    self.cell(35, 7, "TIPO", 1, 0, "C", True) # Aumentado de 20 para 35
+                    self.cell(35, 7, "TIPO", 1, 0, "C", True)
                     self.cell(15, 7, "UNID", 1, 0, "C", True)
                     self.cell(15, 7, "PRED.", 1, 0, "C", True)
                     self.cell(15, 7, "SOLIC.", 1, 0, "C", True)
-                    self.cell(25, 7, "CHECK", 1, 1, "C", True) # Ajustado para fechar a conta
+                    self.cell(25, 7, "CHECK", 1, 1, "C", True)
 
             pdf = PDF_Checklist()
             pdf.add_page()
@@ -194,18 +199,22 @@ elif st.session_state.pagina == "lista":
             for _, r in df_editado.iterrows():
                 pdf.cell(10, 6, str(int(r["ITEM"])), 1, 0, "C")
                 pdf.cell(75, 6, preparar(r["DESCRIÇÃO"]), 1, 0, "L")
-                pdf.cell(35, 6, preparar(r["TIPO"]), 1, 0, "C") # Aumentado aqui também
+                pdf.cell(35, 6, preparar(r["TIPO"]), 1, 0, "C")
                 pdf.cell(15, 6, preparar(r["UNID MED"]), 1, 0, "C")
                 pdf.cell(15, 6, str(r["PREDEFINIDO"]), 1, 0, "C")
                 pdf.cell(15, 6, str(r["CONFIRMA"]), 1, 0, "C")
-                
                 x_pos, y_pos = pdf.get_x(), pdf.get_y()
                 pdf.cell(25, 6, "", 1, 1, "C") 
-                pdf.rect(x_pos + 10.5, y_pos + 1, 4, 4) # Centralizado o quadrado na nova largura
+                pdf.rect(x_pos + 10.5, y_pos + 1, 4, 4) 
 
             pdf_bytes = pdf.output(dest='S').encode('latin-1')
-            st.download_button("📄 PDF", data=pdf_bytes, file_name=f"Rancho_{st.session_state.navio}.pdf", use_container_width=True)
-            st.session_state.ultimo_pdf_dados = pdf_bytes
+            
+            # Ao clicar para baixar o PDF, a coluna "CONFIRMA" zera
+            if st.download_button("📄 PDF", data=pdf_bytes, file_name=f"Rancho_{st.session_state.navio}.pdf", use_container_width=True):
+                st.session_state.df_lista['CONFIRMA'] = 0
+                st.session_state.ultimo_pdf_dados = pdf_bytes
+                st.rerun()
+
         except Exception as e: st.error(f"Erro PDF: {e}")
 
 # =================================================================
@@ -245,7 +254,6 @@ elif st.session_state.pagina == "rancho_recebido":
 # =================================================================
 # BLOCO 8 E 9: ESTILOS E RODAPÉ
 # =================================================================
-st.markdown("<style>.stDataFrame { background-color: white; border-radius: 10px; }</style>", unsafe_allow_html=True)
 if st.session_state.pagina != "home":
     st.markdown("---")
     st.caption(f"Logado: {st.session_state.cozinheiro} | {st.session_state.navio} | © Zion Tecnologia 2026")
