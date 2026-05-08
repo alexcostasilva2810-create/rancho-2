@@ -1,12 +1,9 @@
 import streamlit as st
 import pandas as pd
 from streamlit_drawable_canvas import st_canvas
-from datetime import datetime
 import unicodedata
 from fpdf import FPDF
-import os
 import requests
-import base64
 import io
 
 # --- CONFIGURAÇÃO PWA ---
@@ -33,24 +30,9 @@ if 'df_lista' not in st.session_state: st.session_state.df_lista = pd.DataFrame(
 if 'ultimo_pdf_dados' not in st.session_state: st.session_state.ultimo_pdf_dados = None
 
 USUARIOS = {
-    "JATOBA": {"nome": "STEFANI", "senha": "2558"},
-    "JACARANDA": {"nome": "GABRIEL", "senha": "6352"},
     "ADMINISTRADOR": {"nome": "ALEX", "senha": "2463"},
-    "ANGELO": {"nome": "ELIOMAR", "senha": "7221"},
-    "ENCARREGADO CATIANO": {"nome": "CATIANO", "senha": "8935"},
-    "ENCARREGADO ERITON": {"nome": "ERITON", "senha": "1867"},
-    "CUMARU": {"nome": "JULIO CESA", "senha": "8551"},
-    "LUIZ FELIPE": {"nome": "IVAN SOARES", "senha": "8929"},
-    "AROEIRA": {"nome": "SARA VIRGULINO", "senha": "5881"},
-    "ANGICO": {"nome": "SARA ANACLETO", "senha": "6678"},
-    "BRENO": {"nome": "JOHNNATAN", "senha": "2870"},
-    "SAMAUMA": {"nome": "DANTAS MORAES", "senha": "7211"},
-    "ENCARREGADO MANAUS EUCLIDES": {"nome": "Elcicley Dourado", "senha": "301003"},
-    "ENCARREGADO MIRITITUBA JANARI": {"nome": "Janary Freitas", "senha": "303010"},
-    "SUPERVISOR SANTARÉM": {"nome": "Rafael Artur", "senha": "103010"},
-    "IPE": {"nome": "ALUIZO PEREIRA", "senha": "8419"},
-    "TIMBORANA": {"nome": "ROGILEIA", "senha": "6300"},
-    "CASTANHEIRA": {"nome": "ELEONILDE", "senha": "6300"}
+    "JATOBA": {"nome": "STEFANI", "senha": "2558"},
+    "JACARANDA": {"nome": "GABRIEL", "senha": "6352"}
 }
 
 # =================================================================
@@ -84,7 +66,7 @@ def aplicar_estilo_azul():
     st.markdown("<style>.stApp { background-color: #4169E1 !important; } h1,h2,h3,p,label { color: white !important; } div.stButton > button { background-color: #FF8C00 !important; color: black !important; font-weight: 900; border-radius: 10px; }</style>", unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 3: TELAS INICIAIS
+# BLOCO 3: TELAS INICIAIS (HOME/LOGIN/MENU)
 # =================================================================
 if st.session_state.pagina == "home":
     st.title("Zion Rancho App")
@@ -125,12 +107,10 @@ elif st.session_state.pagina == "menu":
         st.session_state.pagina = "home"; st.rerun()
 
 # =================================================================
-# BLOCO 4: TABELA DE CONFERÊNCIA (FUNDO CINZA + RESET)
+# BLOCO 4: TABELA DE CONFERÊNCIA (TRAVA DE LIMITE + FUNDO CINZA)
 # =================================================================
 elif st.session_state.pagina == "lista":
-    # Fundo Cinza para esta tela
     st.markdown("<style>.stApp { background-color: #D3D3D3 !important; } .stDataFrame { background-color: white !important; border-radius: 10px; }</style>", unsafe_allow_html=True)
-    
     st.title("Conferência de Estoque")
     
     if st.button("🔄 CARREGAR ITENS DO NOTION"):
@@ -143,6 +123,12 @@ elif st.session_state.pagina == "lista":
         use_container_width=True
     )
 
+    # LÓGICA DE VALIDAÇÃO DE LIMITE
+    excedeu = (df_editado["CONFIRMA"] > df_editado["PREDEFINIDO"]).any()
+
+    if excedeu:
+        st.markdown("<p style='color: red; font-weight: bold; font-size: 20px; text-align: center;'>O limite foi excedido você não pode continuar</p>", unsafe_allow_html=True)
+    
     st.markdown("---")
     col_pdf, col_excel, col_btn_menu = st.columns([1,1,1])
 
@@ -151,71 +137,60 @@ elif st.session_state.pagina == "lista":
             st.session_state.pagina = "menu"
             st.rerun()
 
-    with col_excel:
-        output_excel = io.BytesIO()
-        with pd.ExcelWriter(output_excel, engine='xlsxwriter') as writer:
-            df_editado.to_excel(writer, index=False, sheet_name='Rancho')
-        
-        # O Excel também reseta a coluna ao baixar
-        if st.download_button(
-            label="excel EXCEL",
-            data=output_excel.getvalue(),
-            file_name=f"Rancho_{st.session_state.navio}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True
-        ):
-            st.session_state.df_lista['CONFIRMA'] = 0
-            st.rerun()
-
-    with col_pdf:
-        try:
-            def preparar(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
-            
-            class PDF_Checklist(FPDF):
-                def header(self):
-                    self.set_text_color(0, 0, 128) # Azul Marinho
-                    self.set_font("Arial", "B", 18)
-                    self.cell(0, 10, "ZION TECNOLOGIA", ln=True, align="C")
-                    self.set_text_color(0, 0, 0)
-                    self.set_font("Arial", "B", 12)
-                    self.cell(0, 8, preparar(f"Lista de Rancho do Empurrador: {st.session_state.navio}"), ln=True, align="C")
-                    self.set_font("Arial", "", 11)
-                    self.cell(0, 8, preparar(f"Solicitante: {st.session_state.cozinheiro}"), ln=True, align="C")
-                    self.ln(5)
-                    self.set_fill_color(230, 230, 230)
-                    self.set_font("Arial", "B", 8)
-                    self.cell(10, 7, "COD", 1, 0, "C", True)
-                    self.cell(75, 7, "DESCRICAO", 1, 0, "C", True)
-                    self.cell(35, 7, "TIPO", 1, 0, "C", True)
-                    self.cell(15, 7, "UNID", 1, 0, "C", True)
-                    self.cell(15, 7, "PRED.", 1, 0, "C", True)
-                    self.cell(15, 7, "SOLIC.", 1, 0, "C", True)
-                    self.cell(25, 7, "CHECK", 1, 1, "C", True)
-
-            pdf = PDF_Checklist()
-            pdf.add_page()
-            pdf.set_font("Arial", "", 8)
-            
-            for _, r in df_editado.iterrows():
-                pdf.cell(10, 6, str(int(r["ITEM"])), 1, 0, "C")
-                pdf.cell(75, 6, preparar(r["DESCRIÇÃO"]), 1, 0, "L")
-                pdf.cell(35, 6, preparar(r["TIPO"]), 1, 0, "C")
-                pdf.cell(15, 6, preparar(r["UNID MED"]), 1, 0, "C")
-                pdf.cell(15, 6, str(r["PREDEFINIDO"]), 1, 0, "C")
-                pdf.cell(15, 6, str(r["CONFIRMA"]), 1, 0, "C")
-                x_pos, y_pos = pdf.get_x(), pdf.get_y()
-                pdf.cell(25, 6, "", 1, 1, "C") 
-                pdf.rect(x_pos + 10.5, y_pos + 1, 4, 4) 
-
-            pdf_bytes = pdf.output(dest='S').encode('latin-1')
-            
-            # Ao clicar para baixar o PDF, a coluna "CONFIRMA" zera
-            if st.download_button("📄 PDF", data=pdf_bytes, file_name=f"Rancho_{st.session_state.navio}.pdf", use_container_width=True):
+    # BLOQUEIO DOS BOTÕES SE O LIMITE FOR EXCEDIDO
+    if not excedeu:
+        with col_excel:
+            output_excel = io.BytesIO()
+            with pd.ExcelWriter(output_excel, engine='xlsxwriter') as writer:
+                df_editado.to_excel(writer, index=False, sheet_name='Rancho')
+            if st.download_button(label="excel EXCEL", data=output_excel.getvalue(), file_name=f"Rancho_{st.session_state.navio}.xlsx", use_container_width=True):
                 st.session_state.df_lista['CONFIRMA'] = 0
-                st.session_state.ultimo_pdf_dados = pdf_bytes
                 st.rerun()
 
-        except Exception as e: st.error(f"Erro PDF: {e}")
+        with col_pdf:
+            try:
+                def preparar(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
+                class PDF_Checklist(FPDF):
+                    def header(self):
+                        self.set_text_color(0, 0, 128)
+                        self.set_font("Arial", "B", 18)
+                        self.cell(0, 10, "ZION TECNOLOGIA", ln=True, align="C")
+                        self.set_text_color(0, 0, 0)
+                        self.set_font("Arial", "B", 12)
+                        self.cell(0, 8, preparar(f"Lista de Rancho: {st.session_state.navio}"), ln=True, align="C")
+                        self.set_font("Arial", "", 11)
+                        self.cell(0, 8, preparar(f"Solicitante: {st.session_state.cozinheiro}"), ln=True, align="C")
+                        self.ln(5)
+                        self.set_fill_color(230, 230, 230)
+                        self.set_font("Arial", "B", 8)
+                        self.cell(10, 7, "COD", 1, 0, "C", True)
+                        self.cell(75, 7, "DESCRICAO", 1, 0, "C", True)
+                        self.cell(35, 7, "TIPO", 1, 0, "C", True)
+                        self.cell(15, 7, "UNID", 1, 0, "C", True)
+                        self.cell(15, 7, "PRED.", 1, 0, "C", True)
+                        self.cell(15, 7, "SOLIC.", 1, 0, "C", True)
+                        self.cell(25, 7, "CHECK", 1, 1, "C", True)
+
+                pdf = PDF_Checklist()
+                pdf.add_page()
+                pdf.set_font("Arial", "", 8)
+                for _, r in df_editado.iterrows():
+                    pdf.cell(10, 6, str(int(r["ITEM"])), 1, 0, "C")
+                    pdf.cell(75, 6, preparar(r["DESCRIÇÃO"]), 1, 0, "L")
+                    pdf.cell(35, 6, preparar(r["TIPO"]), 1, 0, "C")
+                    pdf.cell(15, 6, preparar(r["UNID MED"]), 1, 0, "C")
+                    pdf.cell(15, 6, str(r["PREDEFINIDO"]), 1, 0, "C")
+                    pdf.cell(15, 6, str(r["CONFIRMA"]), 1, 0, "C")
+                    x_pos, y_pos = pdf.get_x(), pdf.get_y()
+                    pdf.cell(25, 6, "", 1, 1, "C")
+                    pdf.rect(x_pos + 10.5, y_pos + 1, 4, 4)
+
+                pdf_bytes = pdf.output(dest='S').encode('latin-1')
+                if st.download_button("📄 PDF", data=pdf_bytes, file_name=f"Rancho_{st.session_state.navio}.pdf", use_container_width=True):
+                    st.session_state.df_lista['CONFIRMA'] = 0
+                    st.session_state.ultimo_pdf_dados = pdf_bytes
+                    st.rerun()
+            except Exception as e: st.error(f"Erro PDF: {e}")
 
 # =================================================================
 # BLOCO 5: TRIPULAÇÃO / DECLARAÇÃO
@@ -229,8 +204,7 @@ elif st.session_state.pagina == "tripulacao":
         st.date_input("Data do último rancho:", format="DD/MM/YYYY")
         st.number_input("Qtde Tripulante:", min_value=1, value=16)
         st_canvas(stroke_width=3, stroke_color="#000000", background_color="#FFFFFF", height=120, key="sign")
-        if st.form_submit_button("💾 SALVAR"):
-            st.success("Dados salvos.")
+        if st.form_submit_button("💾 SALVAR"): st.success("Dados salvos.")
 
 # =================================================================
 # BLOCO 6: HISTÓRICO
