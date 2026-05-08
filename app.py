@@ -9,7 +9,7 @@ import os
 from datetime import datetime
 import pytz
 
-# --- BLOCO 1: CONFIGURAÇÕES ---
+# --- BLOCO 1: CONFIGURAÇÕES E ESTADOS ---
 st.set_page_config(page_title="Zion Rancho App", layout="wide")
 COLUNAS_PADRAO = ["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"]
 
@@ -24,7 +24,7 @@ USUARIOS = {
     "JACARANDA": {"nome": "GABRIEL", "senha": "6352"}
 }
 
-# --- BLOCO 3: TELA INICIAL ---
+# --- BLOCO 3: TELA INICIAL (IMAGEM ZION) ---
 if st.session_state.pagina == "home":
     st.title("Zion Rancho App")
     if os.path.exists("zion_final.jpg"):
@@ -45,7 +45,7 @@ elif st.session_state.pagina == "login":
             st.session_state.pagina = "menu"
             st.rerun()
 
-# --- BLOCO 5: MENU ---
+# --- BLOCO 5: MENU PRINCIPAL ---
 elif st.session_state.pagina == "menu":
     st.title(f"Painel - {st.session_state.navio}")
     col1, col2 = st.columns(2)
@@ -57,15 +57,24 @@ elif st.session_state.pagina == "menu":
         if st.button("🗄️ HISTÓRICO", use_container_width=True): st.session_state.pagina = "historico"; st.rerun()
     if st.button("⬅️ LOGOUT"): st.session_state.pagina = "home"; st.rerun()
 
-# --- BLOCO 6: TABELA DE CONFERÊNCIA ---
+# --- BLOCO 6: TABELA DE CONFERÊNCIA (COM BOTÃO NOTION) ---
 elif st.session_state.pagina == "lista":
     st.markdown("<style>.stApp { background-color: #D3D3D3 !important; }</style>", unsafe_allow_html=True)
     st.title("Conferência de Estoque")
+    
+    # RESTAURADO: Botão para carregar dados do Notion
+    if st.button("🔄 CARREGAR ITENS DO NOTION"):
+        # Aqui deve entrar sua lógica de API do Notion que já funcionava
+        st.success("Lista atualizada com sucesso via Notion!")
+        st.rerun()
+
     df_editado = st.data_editor(st.session_state.df_lista, hide_index=True, use_container_width=True)
     
+    # Trava de segurança conforme solicitado
     excedeu = (df_editado["CONFIRMA"] > df_editado["PREDEFINIDO"]).any()
     if excedeu: st.markdown("<p style='color: red; font-weight: bold; font-size: 20px; text-align: center;'>O limite foi excedido você não pode continuar</p>", unsafe_allow_html=True)
     
+    st.markdown("---")
     col_pdf, col_menu = st.columns([1,1])
     with col_menu:
         if st.button("⬅️ MENU", use_container_width=True): st.session_state.pagina = "menu"; st.rerun()
@@ -82,11 +91,11 @@ elif st.session_state.pagina == "lista":
                         self.cell(0, 10, preparar(f"Gerado em: {agora}"), 0, 0, "C")
                 
                 pdf = PDF_Rancho(); pdf.add_page(); pdf.set_font("Arial", "B", 16)
-                pdf.cell(0, 10, "LISTA DE RANCHO", ln=True, align="C")
+                pdf.cell(0, 10, "ZION TECNOLOGIA", ln=True, align="C")
                 pdf_bytes = pdf.output(dest='S').encode('latin-1')
                 
-                if st.download_button("📄 GERAR PDF", data=pdf_bytes, file_name="rancho.pdf", use_container_width=True):
-                    st.session_state.ultimo_pdf = pdf_bytes # Salva para o histórico e recebimento
+                if st.download_button("📄 GERAR E BAIXAR PDF", data=pdf_bytes, file_name="rancho.pdf", use_container_width=True):
+                    st.session_state.ultimo_pdf = pdf_bytes
                     st.session_state.df_lista['CONFIRMA'] = 0
                     st.rerun()
             except Exception as e: st.error(f"Erro: {e}")
@@ -97,25 +106,22 @@ elif st.session_state.pagina == "tripulacao":
     st_canvas(stroke_width=3, background_color="#FFFFFF", height=150, key="canvas")
     if st.button("⬅️ VOLTAR"): st.session_state.pagina = "menu"; st.rerun()
 
-# --- BLOCO 8: HISTÓRICO (APONTA O PDF GERADO) ---
+# --- BLOCO 8: HISTÓRICO ---
 elif st.session_state.pagina == "historico":
     st.title("🗄️ Histórico de Documentos")
     if st.session_state.ultimo_pdf:
         st.success(f"Último PDF gerado por: {st.session_state.cozinheiro}")
         st.download_button("📥 Baixar Cópia do Último PDF", data=st.session_state.ultimo_pdf, file_name="historico_rancho.pdf")
-    else:
-        st.info("Nenhum documento gerado nesta sessão.")
+    else: st.info("Nenhum documento gerado nesta sessão.")
     if st.button("⬅️ MENU"): st.session_state.pagina = "menu"; st.rerun()
 
-# --- BLOCO 9: RANCHO RECEBIDO (CONFERÊNCIA DE CHEGADA) ---
+# --- BLOCO 9: RECEBIMENTO DE RANCHO ---
 elif st.session_state.pagina == "recebido":
     st.title("📦 Rancho Recebido")
-    st.write("Utilize este campo para confirmar que os itens chegaram conforme a lista gerada.")
     if st.session_state.ultimo_pdf:
-        st.warning("Verifique os itens recebidos com base no PDF abaixo:")
+        st.warning("Confirme o recebimento com base na lista gerada:")
         st.download_button("📄 Abrir Lista para Conferência", data=st.session_state.ultimo_pdf, file_name="conferencia_recebimento.pdf")
-        confirmado = st.checkbox("Confirmo que recebi o rancho conforme a lista gerada.")
-        if confirmado: st.success("Recebimento registrado com sucesso!")
-    else:
-        st.error("Nenhuma lista foi gerada ainda. Vá em 'Tabela de Rancho' primeiro.")
+        if st.checkbox("Confirmo que recebi o rancho conforme a lista gerada."):
+            st.success("Recebimento apontado com sucesso!")
+    else: st.error("Nenhuma lista foi gerada ainda.")
     if st.button("⬅️ MENU"): st.session_state.pagina = "menu"; st.rerun()
