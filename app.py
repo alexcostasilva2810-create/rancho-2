@@ -216,14 +216,51 @@ elif st.session_state.pagina == "historico":
     st.info("Consulte os documentos gerados.")
 
 # =================================================================
-# BLOCO 7: RANCHO RECEBIDO
+# BLOCO 7: RANCHO RECEBIDO (EXIBIÇÃO DA TABELA + DOWNLOAD)
 # =================================================================
-elif st.session_state.pagina == "rancho_recebido":
-    aplicar_estilo_azul()
-    st.markdown("<h1 style='text-align: center;'>📦 Recebimento</h1>", unsafe_allow_html=True)
-    if st.button("⬅️ VOLTAR AO MENU"): st.session_state.pagina = "menu"; st.rerun()
-    if st.session_state.ultimo_pdf_dados:
-        st.download_button("📥 BAIXAR ÚLTIMO PDF", data=st.session_state.ultimo_pdf_dados, file_name="Conferencia.pdf")
+elif st.session_state.pagina == "recebido":
+    st.markdown("<style>.stApp { background-color: #D3D3D3 !important; }</style>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>📦 Rancho Recebido</h1>", unsafe_allow_html=True) #
+
+    # Verifica se existe a lista do último rancho gerado pelo usuário
+    if 'df_ultimo_pedido' in st.session_state and not st.session_state.df_ultimo_pedido.empty:
+        st.write("### Conferência do Último Rancho Gerado")
+        
+        # Layout: Tabela à esquerda (85%) e Botão/Ícone à direita (15%)
+        col_tabela, col_download = st.columns([0.85, 0.15])
+        
+        with col_tabela:
+            # Apresenta a lista como uma tabela de consulta
+            st.dataframe(st.session_state.df_ultimo_pedido, hide_index=True, use_container_width=True)
+        
+        with col_download:
+            st.markdown("<p style='text-align: center; font-weight: bold;'>PDF</p>", unsafe_allow_html=True)
+            if st.session_state.ultimo_pdf:
+                # Botão de download com ícone posicionado à direita
+                st.download_button(
+                    label="📥", 
+                    data=st.session_state.ultimo_pdf, 
+                    file_name=f"Rancho_{st.session_state.navio}_Conferencia.pdf",
+                    key="btn_down_bloco7",
+                    use_container_width=True
+                )
+
+        st.markdown("---")
+        # Campo para o usuário apontar que recebeu conforme a lista
+        if st.checkbox("Confirmar recebimento total conforme tabela acima"):
+            st.success("✅ Recebimento registrado com sucesso!")
+            
+    else:
+        st.error("❌ Nenhuma lista encontrada. Você precisa gerar um PDF na Tabela de Rancho primeiro.")
+
+    if st.button("⬅️ VOLTAR AO MENU", use_container_width=True):
+        st.session_state.pagina = "menu"
+        st.rerun()
+
+# --- NOTA TÉCNICA PARA O BLOCO 6 ---
+# Para que a tabela apareça aqui no Bloco 7, no Bloco 6 (Lista), 
+# quando o usuário clicar em "GERAR PDF", você deve incluir:
+# st.session_state.df_ultimo_pedido = df_editado.copy()
 
 # =================================================================
 # BLOCO 8 E 9: ESTILOS E RODAPÉ
